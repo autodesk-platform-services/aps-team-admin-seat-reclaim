@@ -70,10 +70,10 @@ Run the unit tests with `dotnet test`.
 - `GET /api/auth/login`:
   - Creates a code verifier, its S256 challenge and a `state` value.
   - Stores the verifier and state in a short-lived, encrypted, HttpOnly cookie.
-  - Redirects to `/authentication/v2/authorize`.
+  - Redirects to `/authentication/v2/authorize`. The URL is built by hand because the SDK's `Scopes` enum has no `tmadmapi:*` values.
 - `GET /api/auth/callback`:
   - Checks `state`.
-  - Exchanges the code and the verifier at `/authentication/v2/token`.
+  - Exchanges the code and the verifier, refreshes tokens and reads the user profile with the official [`Autodesk.Authentication`](https://www.nuget.org/packages/Autodesk.Authentication) SDK.
   - Stores the tokens in encrypted HttpOnly cookies. Tokens refresh automatically when they expire.
 - Requested scopes are `openid profapi:core-std-profile:read tmadmapi:team:read tmadmapi:team-users:read tmadmapi:team-products:read tmadmapi:team-products:write data:read data:write`. `openid` and `profapi:core-std-profile:read` are needed for `/userinfo` (User Profile API), and `data:write` is needed because usage queries are submitted with POST.
 

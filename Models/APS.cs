@@ -1,5 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Autodesk.Authentication;
+using Autodesk.SDKManager;
 
 public partial class APS
 {
@@ -27,6 +29,7 @@ public partial class APS
     private readonly string _callbackUri;
     private readonly string _baseUrl;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly AuthenticationClient _authClient = new(SdkManagerBuilder.Create().Build());
 
     public APS(string clientId, string? clientSecret, string callbackUri, string? baseUrl, IHttpClientFactory httpClientFactory)
     {

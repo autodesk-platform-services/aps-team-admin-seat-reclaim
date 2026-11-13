@@ -1,14 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
+using Autodesk.Authentication;
+using Autodesk.Authentication.Model;
 
 public partial class APS
 {
-    private record TokenResponse(
-        [property: JsonPropertyName("access_token")] string AccessToken,
-        [property: JsonPropertyName("refresh_token")] string? RefreshToken,
-        [property: JsonPropertyName("expires_in")] int ExpiresIn);
-
     public record UserInfo(
         [property: JsonPropertyName("name")] string? Name,
         [property: JsonPropertyName("email")] string? Email);
@@ -28,7 +25,7 @@ public partial class APS
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
     // The Autodesk.Authentication SDK's Scopes enum does not include the tmadmapi:* scopes,
-    // so the authorize URL and token requests are built by hand.
+    // so the authorize URL is built by hand (everything after it goes through the SDK).
     public string GetAuthorizationURL(string state, string codeChallenge)
     {
         var query = new Dictionary<string, string>
@@ -45,47 +42,42 @@ public partial class APS
             string.Join('&', query.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
     }
 
-    public Task<Tokens> GenerateTokens(string code, string codeVerifier) =>
-        RequestTokens(new Dictionary<string, string>
-        {
-            ["grant_type"] = "authorization_code",
-            ["code"] = code,
-            ["code_verifier"] = codeVerifier,
-            ["redirect_uri"] = _callbackUri
-        });
+    // Token exchange, refresh and userinfo use the official Autodesk.Authentication SDK.
+    public async Task<Tokens> GenerateTokens(string code, string codeVerifier) =>
+        ToTokens(await CallSdk(() => _authClient.GetThreeLeggedTokenAsync(
+            _clientId, code, _callbackUri, clientSecret: _clientSecret, codeVerifier: codeVerifier)));
 
-    public Task<Tokens> RefreshTokens(Tokens tokens) =>
-        RequestTokens(new Dictionary<string, string>
-        {
-            ["grant_type"] = "refresh_token",
-            ["refresh_token"] = tokens.RefreshToken ?? throw new ApsApiException(401, "No refresh token available."),
-            ["scope"] = string.Join(' ', Scopes)
-        });
-
-    private async Task<Tokens> RequestTokens(Dictionary<string, string> form)
+    public async Task<Tokens> RefreshTokens(Tokens tokens)
     {
-        // Public (PKCE) clients identify themselves with client_id only.
-        // Confidential clients may still use PKCE and send their secret as well.
-        form["client_id"] = _clientId;
-        if (_clientSecret != null)
-        {
-            form["client_secret"] = _clientSecret;
-        }
-        var client = CreateClient();
-        using var response = await client.PostAsync($"{_baseUrl}/authentication/v2/token", new FormUrlEncodedContent(form));
-        var token = await ReadJson<TokenResponse>(response);
-        return new Tokens
-        {
-            AccessToken = token.AccessToken,
-            RefreshToken = token.RefreshToken,
-            ExpiresAt = DateTime.UtcNow.AddSeconds(token.ExpiresIn)
-        };
+        var refreshToken = tokens.RefreshToken ?? throw new ApsApiException(401, "No refresh token available.");
+        // Scopes are omitted: the refreshed token keeps the scopes granted at sign-in
+        // (the SDK's Scopes enum cannot express the tmadmapi:* scopes).
+        return ToTokens(await CallSdk(() => _authClient.RefreshTokenAsync(
+            _clientId, refreshToken, clientSecret: _clientSecret)));
     }
 
     public async Task<UserInfo> GetUserProfile(Tokens tokens)
     {
-        var client = CreateClient(tokens);
-        using var response = await client.GetAsync($"{_baseUrl}/userinfo");
-        return await ReadJson<UserInfo>(response);
+        var info = await CallSdk(() => _authClient.GetUserInfoAsync(tokens.AccessToken));
+        return new UserInfo(info.Name, info.Email);
+    }
+
+    private static Tokens ToTokens(ThreeLeggedToken token) => new()
+    {
+        AccessToken = token.AccessToken,
+        RefreshToken = token.RefreshToken,
+        ExpiresAt = DateTime.UtcNow.AddSeconds(token.ExpiresIn ?? 0)
+    };
+
+    private static async Task<T> CallSdk<T>(Func<Task<T>> call)
+    {
+        try
+        {
+            return await call();
+        }
+        catch (AuthenticationApiException ex)
+        {
+            throw new ApsApiException((int)ex.HttpResponseMessage.StatusCode, $"Authentication failed: {ex.Message}");
+        }
     }
 }
