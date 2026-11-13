@@ -1,4 +1,4 @@
-# aps-team-admin-api
+# aps-team-admin-seat-reclaim
 
 ![platforms](https://img.shields.io/badge/platform-windows%20%7C%20osx%20%7C%20linux-lightgray.svg)
 [![.net](https://img.shields.io/badge/net-10.0-blue.svg)](https://dotnet.microsoft.com/)
