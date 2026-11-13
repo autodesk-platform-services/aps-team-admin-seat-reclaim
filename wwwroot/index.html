@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/x-icon" href="https://cdn.autodesk.io/favicon.ico">
+    <link rel="stylesheet" href="/main.css">
+    <title>Autodesk Platform Services: Inactive License Cleanup</title>
+</head>
+
+<body>
+    <div id="header">
+        <img class="logo" src="https://cdn.autodesk.io/logo/black/stacked.png" alt="Autodesk Platform Services">
+        <span class="title">Inactive License Cleanup</span>
+        <button id="login" style="visibility: hidden;">Login</button>
+    </div>
+
+    <main id="content">
+        <section id="welcome">
+            <h2>Reclaim licenses from inactive users</h2>
+            <p>Sign in with an Autodesk account that administers a team with
+                <strong>Business Success Plan Reporting API</strong> access. You can then find users who have not used
+                their assigned products for a number of days and remove those licenses with the Team Admin API.</p>
+        </section>
+
+        <section id="teams-panel" hidden>
+            <h2>1. Team</h2>
+            <div id="no-teams" class="message warning" hidden></div>
+            <label>Team
+                <select id="team-select"></select>
+            </label>
+        </section>
+
+        <section id="pools-panel" hidden>
+            <h2>License pools</h2>
+            <div class="toolbar">
+                <span id="pools-updated" class="hint"></span>
+                <button id="refresh-pools" type="button">Refresh pools</button>
+            </div>
+            <table id="pools-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Total</th>
+                        <th>Assigned</th>
+                        <th>Available</th>
+                        <th>Expires</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section id="query-panel" hidden>
+            <h2>2. Find inactive users</h2>
+            <form id="query-form">
+                <label>Inactive for the past
+                    <input id="days" type="number" min="1" max="365" value="60" required> days
+                </label>
+                <fieldset>
+                    <legend>Usage source</legend>
+                    <label><input type="radio" name="source" value="api" checked>
+                        Business Success Plan Reporting API</label>
+                    <label><input type="radio" name="source" value="report">
+                        Upload a Business Success Plan report (.csv, .xlsx or .zip)</label>
+                    <input id="report-file" type="file" accept=".csv,.xlsx,.zip" disabled>
+                    <p class="hint">Accepted reports: Autodesk Account / Export Usage API exports (usage.csv, Seat usage,
+                        Usage report, or the all.zip archive) and tables exported from
+                        <a href="https://github.com/autodesk-platform-services/aps-business-success-plan-report"
+                            target="_blank">aps-business-success-plan-report</a>. Reports must include user emails.</p>
+                </fieldset>
+                <button id="find" type="submit">Find inactive users</button>
+            </form>
+        </section>
+
+        <div id="status" class="message" hidden></div>
+
+        <section id="results-panel" hidden>
+            <h2>3. Select licenses to remove</h2>
+            <div id="summary" class="message info"></div>
+            <div id="warnings"></div>
+
+            <details id="mapping-panel">
+                <summary>Product mapping</summary>
+                <p class="hint">Each Team Admin product is matched with a product name from the usage data. Fix any
+                    mismatch below and click <em>Apply mapping</em>.</p>
+                <table id="mapping-table">
+                    <thead>
+                        <tr>
+                            <th>Team product</th>
+                            <th>Usage product</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <button id="apply-mapping" type="button">Apply mapping</button>
+            </details>
+
+            <div class="toolbar">
+                <span id="selection-count">0 selected</span>
+                <button id="refresh-results" type="button">Refresh results</button>
+                <button id="remove" type="button" class="danger" disabled>Remove selected licenses</button>
+            </div>
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th><input id="select-all" type="checkbox" title="Select all removable"></th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Product</th>
+                        <th>Assignment</th>
+                        <th>Last used</th>
+                        <th>Days inactive</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+    </main>
+
+    <dialog id="confirm-dialog">
+        <form method="dialog">
+            <h3>Remove licenses?</h3>
+            <p id="confirm-text"></p>
+            <menu>
+                <button value="cancel">Cancel</button>
+                <button value="confirm" class="danger">Remove</button>
+            </menu>
+        </form>
+    </dialog>
+
+    <script src="/main.js" type="module"></script>
+</body>
+
+</html>
